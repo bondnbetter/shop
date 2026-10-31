@@ -3,11 +3,56 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bond &amp; Better · Shop</title>
-<style>html,body{margin:0;padding:0;height:100%;background:#fff}iframe{display:block;border:0;width:100%;height:100vh;height:100dvh}</style>
+<title>Bond &amp; Better · Checkout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2A211C;--ink2:#4A3D35;--muted:#6B5D54;--ground:#FBF7F2;--line:#EADFD5;--soft:#F4E6DF;--rose:#8E4F40;--rose2:#6E3A2E;--bad:#A3342B;--badbg:#FBECEA;--ok:#2F6B3F;--okbg:#E3F0E6}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--ink);font-family:'Jost',system-ui,sans-serif;font-size:16px}
+h2,h3,.serif{font-family:'Cormorant Garamond',serif;font-weight:500;margin:0;line-height:1.05}h2{font-size:36px}h2.big{font-size:56px}h3{font-size:24px}
+header{border-bottom:1px solid var(--line);padding:14px 16px;display:flex;justify-content:center;background:var(--ground);position:sticky;top:0;z-index:5}
+header img{height:30px;width:auto;display:block}
+main{max-width:1000px;margin:0 auto}
+.pad{padding:20px 16px;display:flex;flex-direction:column;gap:14px}
+.prodpage{display:grid;grid-template-columns:1fr;gap:0}
+@media(min-width:760px){.prodpage{grid-template-columns:1fr 1fr;gap:24px;padding:24px 16px}.prodpage .pad{padding-top:0}}
+.label{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--rose)}
+.price{font-size:20px}.small{font-size:13px}.muted{color:var(--muted)}.center{text-align:center}.hidden{display:none!important}
+.desc{line-height:1.6;font-size:15px}
+.gal{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;background:#fff}.gal::-webkit-scrollbar{display:none}
+.gal img{flex:0 0 100%;width:100%;aspect-ratio:4/5;object-fit:cover;scroll-snap-align:start;display:block}
+.nophoto{aspect-ratio:4/5;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.gthumbs{display:flex;gap:8px;flex-wrap:wrap;padding:8px 16px 0}.gthumbs button{all:unset;cursor:pointer;width:52px;height:52px;border:1px solid var(--line);background:#fff}.gthumbs button.on{border-color:var(--ink)}.gthumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.chips{display:flex;gap:8px;flex-wrap:wrap}.chip{all:unset;cursor:pointer;display:inline-flex;gap:8px;align-items:center;padding:9px 13px;border:1px solid var(--ink);font-size:12px;letter-spacing:.1em;text-transform:uppercase}.chip.on{background:var(--ink);color:var(--ground)}
+.sw{display:inline-block;width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.2);vertical-align:middle}
+.dots{display:flex;gap:4px}
+.btn{all:unset;cursor:pointer;display:inline-block;box-sizing:border-box;padding:15px 24px;background:var(--ink);color:var(--ground);font-size:13px;letter-spacing:.14em;text-transform:uppercase;text-align:center;text-decoration:none}
+.btn.rose{background:var(--rose)}.btn.wide{display:block;width:100%}.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink)}.btn[disabled]{opacity:.45;pointer-events:none}
+.link{all:unset;cursor:pointer;color:var(--rose);text-decoration:underline;font-size:14px}.link.center{text-align:center;display:block}.link.left{align-self:flex-start}
+input,select,textarea{font:inherit;font-size:16px;padding:11px;border:1px solid #CDBBAD;border-radius:0;background:#fff;color:var(--ink);width:100%}
+label.f,div.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500}
+label.ck{display:flex;gap:10px;align-items:flex-start;font-size:14px}label.ck input{width:auto;margin-top:3px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.qty{display:flex;align-items:center;border:1px solid var(--ink);width:max-content}.qty button{all:unset;cursor:pointer;padding:8px 14px;font-size:18px}.qty span{min-width:24px;text-align:center}
+.line{display:flex;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}.th{width:70px;height:86px;flex:none;background:var(--soft)}.th img{width:100%;height:100%;object-fit:cover;display:block}
+.li{flex:1;display:flex;flex-direction:column;gap:6px;font-size:14px;min-width:0}.li .t{display:flex;justify-content:space-between;gap:8px}
+.note{padding:10px 12px;font-size:14px;background:var(--soft)}.note.ok{background:var(--okbg);color:var(--ok)}.note.bad{background:var(--badbg);color:var(--bad)}.bad{color:var(--bad)}
+.box{background:#fff;border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:10px}
+.tot div{display:flex;justify-content:space-between;padding:3px 0;font-size:15px}.tot .ok{color:var(--ok)}.tot .grand{font-family:'Cormorant Garamond',serif;font-size:26px;border-top:1px solid var(--ink);margin-top:6px;padding-top:8px}
+.also{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}@media(min-width:760px){.also{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.mini{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:5px}.mini .ph{display:block;aspect-ratio:1/1;background:var(--soft)}.mini .ph img{width:100%;height:100%;object-fit:cover;display:block}.mini .nm{font-size:14px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:30}#toast.show{opacity:1}#toast.err{background:var(--bad)}
+#busy{display:none;position:fixed;top:0;left:0;right:0;height:3px;background:var(--rose);z-index:40}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;align-items:center;justify-content:center;padding:16px}#modal.show{display:flex}#modal-body{background:var(--ground);padding:20px;max-width:560px;max-height:80vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+</style>
 </head>
 <body>
-<iframe id="shop" title="Bond &amp; Better shop" allow="payment; clipboard-write"></iframe>
-<script src="/go.js"></script>
+<div id="busy"></div>
+<header><a href="/"><img src="/logo.png" alt="Bond &amp; Better"></a></header>
+<main id="view"><section class="pad muted">Loading…</section></main>
+<div id="modal" onclick="if(event.target===this)this.className=''"><div id="modal-body"></div></div>
+<div id="toast"></div>
+<script src="/checkout/app.js"></script>
 </body>
 </html>
