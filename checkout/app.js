@@ -23,22 +23,6 @@ function api(a, p, quiet) {
 function shopLink() { return (D.cfg && D.cfg.shop) || '/'; }
 function fromApp() { return Q.cart_origin === 'instagram' ? 'Instagram' : Q.cart_origin === 'facebook' ? 'Facebook' : /Instagram/i.test(navigator.userAgent) ? 'Instagram' : /FBAN|FBAV/i.test(navigator.userAgent) ? 'Facebook' : 'Facebook & Instagram'; }
 
-// Your full shop is a Google web app, which Instagram's and Facebook's browsers on iPhone won't load. There, links to
-// it try to open Safari (iOS 17+), and if that doesn't happen, show how to open it in the phone's browser.
-function inApp() { return /Instagram|FBAN|FBAV|FB_IAB|FBIOS/i.test(navigator.userAgent || ''); }
-function iOS() { return /iPhone|iPad|iPod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
-function openShop() {
-  if (!(inApp() && iOS())) return true;
-  var url = shopLink(); if (!/^https?:/.test(url)) url = location.origin + '/';
-  try { location.href = 'x-safari-' + url; } catch (e) {}
-  setTimeout(function () { if (!document.hidden) openHelp(); }, 1200);
-  return false;
-}
-function openHelp() {
-  $('modal-body').innerHTML = '<h3>Open the full shop in Safari</h3><div class="desc">Instagram’s browser can’t show the full shop. Tap <b>•••</b> at the top of the screen, then <b>Open in external browser</b>.</div><div class="small muted">Or open Safari and go to ' + esc(String(shopLink()).replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</div><button class="btn" onclick="$(\'modal\').className=\'\'">Got it</button>';
-  $('modal').className = 'show';
-}
-
 /* ---------- pieces: groups (sizes), families (linked metals) ---------- */
 function item(sku) { return (D.cat || []).find(function (x) { return x.sku === sku; }); }
 function groups(list) { var out = [], by = {}; (list || D.cat || []).forEach(function (x) { if (!x.style) { out.push({ key: x.sku, first: x, items: [x] }); return; } if (!by[x.style]) { by[x.style] = { key: x.style, first: x, items: [] }; out.push(by[x.style]); } by[x.style].items.push(x); }); return out; }
@@ -73,7 +57,7 @@ function alsoFor(f) {
 // Meta's price is the regular price (no online sale prices or promotions).
 function product(key, keepSize) {
   var h = famOf(key);
-  if (!h) { view('<section class="pad"><h2>That piece isn’t available anymore</h2><p><a class="btn" href="' + esc(shopLink()) + '" onclick="return openShop()">Browse the shop</a></p></section>'); return; }
+  if (!h) { view('<section class="pad"><h2>That piece isn’t available anymore</h2><p><a class="btn" href="' + esc(shopLink()) + '">Browse the shop</a></p></section>'); return; }
   var f = h.f, g = h.g, x = g.first, sized = g.items.length > 1;
   var sz = sized ? (g.items.find(function (i) { return keepSize && i.size === keepSize; }) || g.items[0]) : x;
   PK = { key: key, g: g, sku: sz.sku, qty: 1 };
@@ -85,7 +69,7 @@ function product(key, keepSize) {
     (sized ? '<label class="f">' + (x.cat === 'Rings' ? 'Ring size' : esc(x.opt || 'Size')) + '<select id="psz" onchange="PK.sku=this.value;$(\'pp\').textContent=money(item(this.value).price)">' + g.items.map(function (i) { return '<option value="' + esc(i.sku) + '"' + (i === sz ? ' selected' : '') + '>' + esc(i.size) + '</option>'; }).join('') + '</select></label>' : '') +
     (x.description ? '<div class="desc">' + descHtml(x.description) + '</div>' : '') + (x.material ? '<div class="small muted">' + esc(x.material) + '</div>' : '') +
     '<div class="qty"><button onclick="pq(-1)" aria-label="Less">−</button><span id="pqn">1</span><button onclick="pq(1)" aria-label="More">+</button></div>' +
-    '<button class="btn wide" onclick="buyNow()">Check out</button><a class="link center" href="' + esc(shopLink()) + '" onclick="return openShop()">Browse the full shop</a>' +
+    '<button class="btn wide" onclick="buyNow()">Check out</button><a class="link center" href="' + esc(shopLink()) + '">Browse the full shop</a>' +
     (D.cfg.ship_short ? '<div class="small muted">' + esc(D.cfg.ship_short) + '</div>' : '') + '</div></div>' +
     (function () { var a = alsoFor(f); return a.length ? '<section class="pad"><h3>You might also like</h3><div class="also">' + a.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + o.gs.map(function (g2) { return swatch(g2.first.swatch); }).join('') + '</span>' : '') + '</button>'; }).join('') + '</div></section>' : ''; })());
 }
@@ -99,7 +83,7 @@ function startCart(lines, products) {
   CK = { lines: null, coupon: Q.coupon || '', q: null, first: true, bad: [] };
   view('<section class="pad muted">Getting your order ready…</section>');
   api('metaCart', lines ? { lines: lines, coupon: CK.coupon } : { products: products, coupon: CK.coupon }).then(function (q) {
-    if (!q) { view('<section class="pad"><h2>We couldn’t load your order</h2><p><a class="btn" href="' + esc(shopLink()) + '" onclick="return openShop()">Go to the shop</a></p></section>'); return; }
+    if (!q) { view('<section class="pad"><h2>We couldn’t load your order</h2><p><a class="btn" href="' + esc(shopLink()) + '">Go to the shop</a></p></section>'); return; }
     CK.lines = q.groups.map(function (g) { return { id: g.id, qty: g.qty, sizes: g.slots.map(function (x) { return x.sizes ? (x.chosen || '') : ''; }) }; });
     CK.bad = q.bad; CK.q = q; ckDraw();
   });
@@ -122,7 +106,7 @@ function ckDraw() {
   var q = CK.q;
   var bad = CK.bad && CK.bad.length ? '<div class="note bad">' + (CK.bad.length === 1 ? 'One piece' : CK.bad.length + ' pieces') + ' from your cart ' + (CK.bad.length === 1 ? 'isn’t' : 'aren’t') + ' available anymore, so ' + (CK.bad.length === 1 ? 'it was' : 'they were') + ' left out.</div>' : '';
   var cp = q.coupon ? '<div class="note ' + (q.coupon.ok ? 'ok' : 'bad') + '">' + esc(q.coupon.msg) + '</div>' : '';
-  if (!q.groups.length) { view('<section class="pad"><h2>Your cart is empty</h2>' + bad + '<p><a class="btn" href="' + esc(shopLink()) + '" onclick="return openShop()">Visit the shop</a></p></section>'); return; }
+  if (!q.groups.length) { view('<section class="pad"><h2>Your cart is empty</h2>' + bad + '<p><a class="btn" href="' + esc(shopLink()) + '">Visit the shop</a></p></section>'); return; }
   var keep = CK.first ? null : ckForm();
   view('<section class="pad"><span class="label">Your order from ' + fromApp() + '</span><h2>Checkout</h2>' + bad + cp +
     q.groups.map(function (g, j) {
@@ -169,10 +153,10 @@ function policy() { $('modal-body').innerHTML = '<h3>Returns &amp; defects</h3><
 function done() {
   view('<section class="pad muted">Checking your payment…</section>');
   api('confirm', { order_id: Q.order, s: Q.s, cancel: Q.cancel ? 1 : 0 }).then(function (r) {
-    if (!r) { view('<section class="pad"><h2>We couldn’t find that order</h2><p><a class="btn" href="' + esc(shopLink()) + '" onclick="return openShop()">Visit the shop</a></p></section>'); return; }
+    if (!r) { view('<section class="pad"><h2>We couldn’t find that order</h2><p><a class="btn" href="' + esc(shopLink()) + '">Visit the shop</a></p></section>'); return; }
     try { history.replaceState(null, '', location.pathname); } catch (e) {}
     if (r.canceled) { view('<section class="pad"><h2>Payment wasn’t completed</h2><p>No charge was made. To try again, go back to your cart on Facebook or Instagram and tap checkout.</p></section>'); return; }
-    if (r.status === 'PAID') { view('<section class="pad"><span class="label">Order ' + esc(r.order_id) + '</span><h2 class="big">Thank <i>you!</i></h2><p>Your order is confirmed. A receipt is on its way to ' + esc(r.email) + ', and we’ll email your tracking number when it ships.</p><div class="small">' + r.lines.map(function (l) { return l.qty + ' × ' + esc(l.name); }).join('<br>') + '</div><div class="serif" style="font-size:26px">Total ' + money(r.total) + '</div><p><a class="btn ghost" href="' + esc(shopLink()) + '" onclick="return openShop()">Keep shopping</a></p></section>'); return; }
+    if (r.status === 'PAID') { view('<section class="pad"><span class="label">Order ' + esc(r.order_id) + '</span><h2 class="big">Thank <i>you!</i></h2><p>Your order is confirmed. A receipt is on its way to ' + esc(r.email) + ', and we’ll email your tracking number when it ships.</p><div class="small">' + r.lines.map(function (l) { return l.qty + ' × ' + esc(l.name); }).join('<br>') + '</div><div class="serif" style="font-size:26px">Total ' + money(r.total) + '</div><p><a class="btn ghost" href="' + esc(shopLink()) + '">Keep shopping</a></p></section>'); return; }
     view('<section class="pad"><h2>We’re still waiting on your payment</h2><p>If you finished paying, it can take a moment. <button class="link" onclick="done()">Check again</button></p></section>');
   });
 }
