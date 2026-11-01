@@ -21,8 +21,8 @@ main{max-width:1000px;margin:0 auto}
 .price{font-size:20px}.small{font-size:13px}.muted{color:var(--muted)}.center{text-align:center}.hidden{display:none!important}
 .desc{line-height:1.6;font-size:15px}
 .gal{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;background:#fff}.gal::-webkit-scrollbar{display:none}
-.gal img{flex:0 0 100%;width:100%;aspect-ratio:4/5;object-fit:cover;scroll-snap-align:start;display:block}
-.nophoto{aspect-ratio:4/5;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.gal img{flex:0 0 100%;width:100%;aspect-ratio:1/1;object-fit:cover;scroll-snap-align:start;display:block}
+.nophoto{aspect-ratio:1/1;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .gthumbs{display:flex;gap:8px;flex-wrap:wrap;padding:8px 16px 0}.gthumbs button{all:unset;cursor:pointer;width:52px;height:52px;border:1px solid var(--line);background:#fff}.gthumbs button.on{border-color:var(--ink)}.gthumbs img{width:100%;height:100%;object-fit:cover;display:block}
 .chips{display:flex;gap:8px;flex-wrap:wrap}.chip{all:unset;cursor:pointer;display:inline-flex;gap:8px;align-items:center;padding:9px 13px;border:1px solid var(--ink);font-size:12px;letter-spacing:.1em;text-transform:uppercase}.chip.on{background:var(--ink);color:var(--ground)}
 .sw{display:inline-block;width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.2);vertical-align:middle}
@@ -35,7 +35,7 @@ label.f,div.f{display:flex;flex-direction:column;gap:6px;font-size:13px;font-wei
 label.ck{display:flex;gap:10px;align-items:flex-start;font-size:14px}label.ck input{width:auto;margin-top:3px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
 .qty{display:flex;align-items:center;border:1px solid var(--ink);width:max-content}.qty button{all:unset;cursor:pointer;padding:8px 14px;font-size:18px}.qty span{min-width:24px;text-align:center}
-.line{display:flex;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}.th{width:70px;height:86px;flex:none;background:var(--soft)}.th img{width:100%;height:100%;object-fit:cover;display:block}
+.line{display:flex;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px}.th{width:76px;height:76px;flex:none;background:var(--soft)}.th img{width:100%;height:100%;object-fit:cover;display:block}
 .li{flex:1;display:flex;flex-direction:column;gap:6px;font-size:14px;min-width:0}.li .t{display:flex;justify-content:space-between;gap:8px}
 .note{padding:10px 12px;font-size:14px;background:var(--soft)}.note.ok{background:var(--okbg);color:var(--ok)}.note.bad{background:var(--badbg);color:var(--bad)}.bad{color:var(--bad)}
 .box{background:#fff;border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -49,7 +49,7 @@ label.ck{display:flex;gap:10px;align-items:flex-start;font-size:14px}label.ck in
 </head>
 <body>
 <div id="busy"></div>
-<header><a href="/"><img src="/logo.png" alt="Bond &amp; Better"></a></header>
+<header><a href="/" onclick="return openShop()"><img src="/logo.png" alt="Bond &amp; Better"></a></header>
 <main id="view"><section class="pad muted">Loading…</section></main>
 <div id="modal" onclick="if(event.target===this)this.className=''"><div id="modal-body"></div></div>
 <div id="toast"></div>
