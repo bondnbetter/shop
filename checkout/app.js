@@ -59,6 +59,21 @@ function famOf(key) {
 }
 function famName(f, g) { return f.gs.length > 1 ? (g.first.mg_name || g.first.name) : g.first.name; }
 function swatch(sw, on) { var bg = { gold: 'linear-gradient(135deg,#E9CF8F,#C9A55A)', silver: 'linear-gradient(135deg,#F2F2F2,#B9BBBE)', rose: 'linear-gradient(135deg,#F1C7B6,#C98F7A)', mixed: 'linear-gradient(135deg,#E9CF8F 50%,#C9CBCE 50%)', gunmetal: 'linear-gradient(135deg,#7A7D82,#3E4044)' }[sw] || '#D9D2CC'; return '<span class="sw" style="background:' + bg + (on ? ';border-color:currentColor' : '') + '"></span>'; }
+// Versions of one piece can differ by metal, stone or both.
+function famDims(f) { var m = {}, s0 = {}; f.gs.forEach(function (y) { m[y.first.metal || ''] = 1; s0[y.first.stone || ''] = 1; }); return { metal: Object.keys(m).length > 1, stone: Object.keys(s0).length > 1 }; }
+function famPick(f, metal, stone) { var eq = function (y, k, v) { return (y.first[k] || '') === (v || ''); }; return f.gs.find(function (y) { return eq(y, 'metal', metal) && eq(y, 'stone', stone); }) || f.gs.find(function (y) { return eq(y, 'metal', metal); }) || f.g; }
+function famUniq(f, k) { var seen = {}, out = []; f.gs.forEach(function (y) { var v = y.first[k] || ''; if (!seen[v]) { seen[v] = 1; out.push(y); } }); return out; }
+function stoneDot(color, on) { return '<span class="sw" style="background:' + esc(color || '#D9D2CC') + (on ? ';border-color:currentColor' : '') + '"></span>'; }
+function famDots(o) { var d = famDims(o); return (d.metal ? famUniq(o, 'metal').map(function (g2) { return swatch(g2.first.swatch); }).join('') : '') + (d.stone ? famUniq(o, 'stone').filter(function (g2) { return g2.first.stone; }).map(function (g2) { return stoneDot(g2.first.stone_color); }).join('') : ''); }
+function verRows(f, g) {
+  var d = famDims(f), x = g.first, keep = 'PK&&item(PK.sku)?item(PK.sku).size:\'\'', out = '';
+  if (d.metal) out += '<div class="f"><span>Metal · <b>' + esc(x.metal) + '</b></span><div class="chips">' + famUniq(f, 'metal').map(function (y) { var on = y.first.metal === x.metal, t = famPick(f, y.first.metal, x.stone); return '<button class="chip' + (on ? ' on' : '') + '" onclick="product(\'' + esc(t.key) + '\',' + keep + ')">' + swatch(y.first.swatch, on) + esc(y.first.metal) + '</button>'; }).join('') + '</div></div>';
+  if (d.stone) out += '<div class="f"><span>Stone · <b>' + esc(x.stone || 'No stone') + '</b></span><div class="chips">' + famUniq(f, 'stone').map(function (y) {
+    var lab = y.first.stone || 'No stone', on = (y.first.stone || '') === (x.stone || ''), t = f.gs.find(function (z) { return z.first.metal === x.metal && (z.first.stone || '') === (y.first.stone || ''); });
+    if (!t) return '<button class="chip" disabled style="opacity:.45"><s>' + esc(lab) + '</s></button>';
+    return '<button class="chip' + (on ? ' on' : '') + '" onclick="product(\'' + esc(t.key) + '\',' + keep + ')">' + stoneDot(y.first.stone_color, on) + esc(lab) + '</button>'; }).join('') + '</div></div>';
+  return out;
+}
 function famPrice(f) { var ps = f.gs.map(function (g) { return g.first.price; }), lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps); return lo === hi ? money(lo) : 'From ' + money(lo); }
 function descHtml(t) { return String(t || '').replace(/\r\n?/g, '\n').split('\n').map(function (ln) { var m = ln.match(/^\s*([^:]{1,40}):\s+(.+)$/); return m ? '<b>' + esc(m[1].trim()) + ':</b> ' + esc(m[2]) : esc(ln); }).join('<br>'); }
 function alsoFor(f) {
@@ -86,14 +101,14 @@ function product(key, keepSize) {
   view('<div class="prodpage"><div>' + (pics.length ? '<div class="gal" id="gal" onscroll="galSync()">' + pics.map(function (u) { return '<img src="' + u + '" alt="' + esc(x.name) + '">'; }).join('') + '</div>' +
       (pics.length > 1 ? '<div class="gthumbs">' + pics.map(function (u, i) { return '<button' + (i ? '' : ' class="on"') + ' onclick="galTo(' + i + ')" aria-label="Photo ' + (i + 1) + '"><img src="' + u + '" alt=""></button>'; }).join('') + '</div>' : '') : '<div class="nophoto">Photo coming soon</div>') + '</div>' +
     '<div class="pad">' + (x.type ? '<span class="label">' + esc(x.type) + '</span>' : '') + '<h2>' + esc(x.name) + '</h2><div class="price" id="pp">' + money(sz.price) + '</div>' +
-    (f.gs.length > 1 ? '<div class="f"><span>Metal · <b>' + esc(x.metal) + '</b></span><div class="chips">' + f.gs.map(function (y) { return '<button class="chip' + (y === g ? ' on' : '') + '" onclick="product(\'' + esc(y.key) + '\',PK&&item(PK.sku)?item(PK.sku).size:\'\')">' + swatch(y.first.swatch, y === g) + esc(y.first.metal) + '</button>'; }).join('') + '</div></div>' : '') +
+    (f.gs.length > 1 ? verRows(f, g) : '') +
     (sized ? '<label class="f">' + (x.cat === 'Rings' ? 'Ring size' : esc(x.opt || 'Size')) + '<select id="psz" onchange="PK.sku=this.value;$(\'pp\').textContent=money(item(this.value).price)">' + g.items.map(function (i) { return '<option value="' + esc(i.sku) + '"' + (i === sz ? ' selected' : '') + '>' + esc(i.size) + '</option>'; }).join('') + '</select></label>' : '') +
     (x.description ? '<div class="desc">' + descHtml(x.description) + '</div>' : '') + (x.material ? '<div class="small muted">' + esc(x.material) + '</div>' : '') +
     '<div class="qty"><button onclick="pq(-1)" aria-label="Less">−</button><span id="pqn">1</span><button onclick="pq(1)" aria-label="More">+</button></div>' +
     (inCart() ? '<button class="btn wide" onclick="buyNow()">Add to my order</button><button class="btn ghost wide" onclick="backToCk()">Back to checkout</button>' : '<button class="btn wide" onclick="buyNow()">Check out</button>') +
     '<button class="link center" onclick="browse()">Keep shopping</button>' +
     (D.cfg.ship_short ? '<div class="small muted">' + esc(D.cfg.ship_short) + '</div>' : '') + '</div></div>' +
-    (function () { var a = alsoFor(f); return a.length ? '<section class="pad"><h3>You might also like</h3><div class="also">' + a.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + o.gs.map(function (g2) { return swatch(g2.first.swatch); }).join('') + '</span>' : '') + '</button>'; }).join('') + '</div></section>' : ''; })());
+    (function () { var a = alsoFor(f); return a.length ? '<section class="pad"><h3>You might also like</h3><div class="also">' + a.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + famDots(o) + '</span>' : '') + '</button>'; }).join('') + '</div></section>' : ''; })());
 }
 function galTo(i) { var g = $('gal'); if (g) g.scrollTo({ left: i * g.clientWidth, behavior: 'smooth' }); }
 function galSync() { var g = $('gal'); if (!g || !g.clientWidth) return; var i = Math.round(g.scrollLeft / g.clientWidth); [].forEach.call(document.querySelectorAll('.gthumbs button'), function (b, k) { b.className = k === i ? 'on' : ''; }); }
@@ -125,7 +140,7 @@ function browse(cat) {
     '<div class="chips">' + chip('', 'All') + (stacks.length ? chip(STK, STK) : '') + cats.map(function (c) { return chip(c, c); }).join('') + '</div>' +
     '<div class="also">' +
     (showStacks ? stacks.map(function (k) { return '<button class="mini" onclick="stackView(\'' + esc(k.id) + '\')"><span class="ph">' + (k.photo ? '<img src="' + esc(k.photo) + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(k.name) + '</span><span class="small">' + money(k.price) + ' · stack of ' + k.pieces.length + '</span></button>'; }).join('') : '') +
-    list.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + o.gs.map(function (g2) { return swatch(g2.first.swatch); }).join('') + '</span>' : '') + '</button>'; }).join('') +
+    list.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + famDots(o) + '</span>' : '') + '</button>'; }).join('') +
     '</div>' + (!list.length && !showStacks ? '<p class="muted">Nothing here right now.</p>' : '') + '</section>');
 }
 function stackView(id) {
