@@ -3,7 +3,7 @@
 // order itself come from the online store web app, so everything lands in the books like any online order.
 var API = 'https://script.google.com/macros/s/AKfycbxHDysj2Av9_SwTcDjbH6A0yMohdJyq3_LyhXvoXUH9QCBeZjH2FSvGTKKZ66m9wnS1/exec';
 var Q = {}; (location.search || '').replace(/^\?/, '').split('&').forEach(function (kv) { if (!kv) return; var i = kv.indexOf('='), k = decodeURIComponent((i < 0 ? kv : kv.slice(0, i)).replace(/\+/g, ' ')), v = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' ')); Q[k] = v; });
-var D = { cat: null, cfg: null }, CK = null, PK = null;
+var D = { cat: null, cfg: null, stacks: [] }, CK = null, PK = null;
 function $(id) { return document.getElementById(id); }
 function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function money(n) { n = Math.round(Number(n) * 100) / 100; return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
@@ -90,14 +90,56 @@ function product(key, keepSize) {
     (sized ? '<label class="f">' + (x.cat === 'Rings' ? 'Ring size' : esc(x.opt || 'Size')) + '<select id="psz" onchange="PK.sku=this.value;$(\'pp\').textContent=money(item(this.value).price)">' + g.items.map(function (i) { return '<option value="' + esc(i.sku) + '"' + (i === sz ? ' selected' : '') + '>' + esc(i.size) + '</option>'; }).join('') + '</select></label>' : '') +
     (x.description ? '<div class="desc">' + descHtml(x.description) + '</div>' : '') + (x.material ? '<div class="small muted">' + esc(x.material) + '</div>' : '') +
     '<div class="qty"><button onclick="pq(-1)" aria-label="Less">−</button><span id="pqn">1</span><button onclick="pq(1)" aria-label="More">+</button></div>' +
-    '<button class="btn wide" onclick="buyNow()">Check out</button><a class="link center" href="' + esc(shopLink()) + '" onclick="return openShop()">Browse the full shop</a>' +
+    (inCart() ? '<button class="btn wide" onclick="buyNow()">Add to my order</button><button class="btn ghost wide" onclick="backToCk()">Back to checkout</button>' : '<button class="btn wide" onclick="buyNow()">Check out</button>') +
+    '<button class="link center" onclick="browse()">Keep shopping</button>' +
     (D.cfg.ship_short ? '<div class="small muted">' + esc(D.cfg.ship_short) + '</div>' : '') + '</div></div>' +
     (function () { var a = alsoFor(f); return a.length ? '<section class="pad"><h3>You might also like</h3><div class="also">' + a.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + o.gs.map(function (g2) { return swatch(g2.first.swatch); }).join('') + '</span>' : '') + '</button>'; }).join('') + '</div></section>' : ''; })());
 }
 function galTo(i) { var g = $('gal'); if (g) g.scrollTo({ left: i * g.clientWidth, behavior: 'smooth' }); }
 function galSync() { var g = $('gal'); if (!g || !g.clientWidth) return; var i = Math.round(g.scrollLeft / g.clientWidth); [].forEach.call(document.querySelectorAll('.gthumbs button'), function (b, k) { b.className = k === i ? 'on' : ''; }); }
 function pq(d) { PK.qty = Math.max(1, Math.min(99, PK.qty + d)); $('pqn').textContent = PK.qty; }
-function buyNow() { var g = PK.g; startCart([{ id: g.key, qty: PK.qty, sizes: g.items.length > 1 ? [PK.sku] : [] }]); }
+function buyNow() { var g = PK.g, l = { id: g.key, qty: PK.qty, sizes: g.items.length > 1 ? [PK.sku] : [] }; if (inCart()) addLine(l, Number((item(PK.sku) || g.first).price) * PK.qty); else startCart([l]); }
+
+/* ---------- keep shopping: everything in the Meta catalog, plus social stacks ---------- */
+function inCart() { return !!(CK && CK.lines && CK.lines.length); }
+function ckSave() { if ($('ck-fn')) { CK.form = ckForm(); CK.note = $('ck-note').value; } }
+function backToCk() { if (!inCart()) { browse(); return; } ckDraw(); }
+// Adds a piece or stack to the order (one already in it with the same sizes just gets more), then back to checkout.
+function addLine(l, value) {
+  var same = CK.lines.find(function (x) { return x.id === l.id && (x.sizes || []).filter(Boolean).join() === (l.sizes || []).filter(Boolean).join(); });
+  if (same) same.qty = Math.min(99, same.qty + l.qty); else CK.lines.push(l);
+  px('AddToCart', { content_ids: [l.id], content_type: 'product', value: Number(value) || 0, currency: 'USD' });
+  var f = CK.form, sh = f && f.state ? { address1: f.address1, address2: f.address2, city: f.city, state: f.state, zip: f.zip, county: f.county } : null;
+  api('metaCart', { lines: CK.lines, coupon: CK.coupon, ship: sh }).then(function (q) { if (!q) return; CK.q = q; ckDraw(); toast('Added to your order'); });
+}
+function browse(cat) {
+  if (CK && $('ck-fn')) ckSave();
+  var all = fams(), cats = [], seen = {};
+  (D.cat || []).slice().sort(function (a, b) { return (a.cat_sort || 0) - (b.cat_sort || 0); }).forEach(function (x) { if (x.cat && !seen[x.cat]) { seen[x.cat] = 1; cats.push(x.cat); } });
+  var STK = 'Social stacks', stacks = D.stacks || [];
+  if (cat && cat !== STK && cats.indexOf(cat) < 0) cat = '';
+  var showStacks = stacks.length && (!cat || cat === STK), list = cat === STK ? [] : all.filter(function (f) { return !cat || f.gs.some(function (g) { return g.first.cat === cat; }); });
+  var chip = function (c, label) { return '<button class="chip' + ((cat || '') === c ? ' on' : '') + '" onclick="browse(\'' + esc(c) + '\')">' + esc(label) + '</button>'; };
+  view('<section class="pad"><span class="label">' + esc((D.cfg && D.cfg.business) || 'Bond & Better') + '</span><h2>' + (inCart() ? 'Add more pieces' : 'Shop') + '</h2>' +
+    (inCart() ? '<button class="btn ghost wide" onclick="backToCk()">Back to checkout (' + CK.lines.reduce(function (a, l) { return a + l.qty; }, 0) + ')</button>' : '') +
+    '<div class="chips">' + chip('', 'All') + (stacks.length ? chip(STK, STK) : '') + cats.map(function (c) { return chip(c, c); }).join('') + '</div>' +
+    '<div class="also">' +
+    (showStacks ? stacks.map(function (k) { return '<button class="mini" onclick="stackView(\'' + esc(k.id) + '\')"><span class="ph">' + (k.photo ? '<img src="' + esc(k.photo) + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(k.name) + '</span><span class="small">' + money(k.price) + ' · stack of ' + k.pieces.length + '</span></button>'; }).join('') : '') +
+    list.map(function (o) { var y = o.g.first; return '<button class="mini" onclick="product(\'' + esc(o.key) + '\')"><span class="ph">' + (y.photo ? '<img src="' + y.photo + '" alt="" loading="lazy">' : '') + '</span><span class="nm">' + esc(famName(o, o.g)) + '</span><span class="small">' + famPrice(o) + '</span>' + (o.gs.length > 1 ? '<span class="dots">' + o.gs.map(function (g2) { return swatch(g2.first.swatch); }).join('') + '</span>' : '') + '</button>'; }).join('') +
+    '</div>' + (!list.length && !showStacks ? '<p class="muted">Nothing here right now.</p>' : '') + '</section>');
+}
+function stackView(id) {
+  var k = (D.stacks || []).find(function (x) { return x.id === id; });
+  if (!k) { browse(); return; }
+  px('ViewContent', { content_ids: [k.id], content_type: 'product', content_name: k.name, value: Number(k.price) || 0, currency: 'USD' });
+  view('<div class="prodpage"><div>' + (k.photo ? '<div class="gal"><img src="' + esc(k.photo) + '" alt="' + esc(k.name) + '"></div>' : '<div class="nophoto">Photo coming soon</div>') + '</div>' +
+    '<div class="pad"><span class="label">Social stack</span><h2>' + esc(k.name) + '</h2><div class="price">' + money(k.price) + '</div>' +
+    (k.description ? '<div class="desc">' + descHtml(k.description) + '</div>' : '') +
+    '<div class="small"><b>Includes:</b><br>' + k.pieces.map(esc).join('<br>') + '</div>' +
+    (k.pieces.some(function (x) { return /choose your size/.test(x); }) ? '<div class="small muted">You’ll choose your ring size at checkout.</div>' : '') +
+    (inCart() ? '<button class="btn wide" onclick="addLine({ id: \'' + esc(k.id) + '\', qty: 1, sizes: [] }, ' + Number(k.price) + ')">Add to my order</button><button class="btn ghost wide" onclick="backToCk()">Back to checkout</button>' : '<button class="btn wide" onclick="startCart(null, \'' + esc(k.id) + ':1\')">Check out</button>') +
+    '<button class="link center" onclick="browse()">Keep shopping</button></div></div>');
+}
 
 /* ---------- checkout (Meta's cart, or "Check out" on a piece) ---------- */
 function startCart(lines, products) {
@@ -128,14 +170,15 @@ function ckDraw() {
   var q = CK.q;
   var bad = CK.bad && CK.bad.length ? '<div class="note bad">' + (CK.bad.length === 1 ? 'One piece' : CK.bad.length + ' pieces') + ' from your cart ' + (CK.bad.length === 1 ? 'isn’t' : 'aren’t') + ' available anymore, so ' + (CK.bad.length === 1 ? 'it was' : 'they were') + ' left out.</div>' : '';
   var cp = q.coupon ? '<div class="note ' + (q.coupon.ok ? 'ok' : 'bad') + '">' + esc(q.coupon.msg) + '</div>' : '';
-  if (!q.groups.length) { view('<section class="pad"><h2>Your cart is empty</h2>' + bad + '<p><a class="btn" href="' + esc(shopLink()) + '" onclick="return openShop()">Visit the shop</a></p></section>'); return; }
-  var keep = CK.first ? null : ckForm();
+  if (!q.groups.length) { view('<section class="pad"><h2>Your cart is empty</h2>' + bad + '<p><button class="btn" onclick="browse()">Keep shopping</button></p></section>'); return; }
+  var keep = $('ck-fn') ? ckForm() : CK.form || null, note = $('ck-note') ? $('ck-note').value : CK.note || '';
   view('<section class="pad"><span class="label">Your order from ' + fromApp() + '</span><h2>Checkout</h2>' + bad + cp +
     q.groups.map(function (g, j) {
       return '<div class="line"><span class="th">' + (g.photo ? '<img src="' + g.photo + '" alt="">' : '') + '</span><div class="li"><div class="t"><b>' + esc(g.name) + '</b><span>' + money(g.total) + '</span></div><span class="small muted">Qty ' + g.qty + (g.qty > 1 ? ' × ' + money(g.unit) : '') + '</span>' +
         g.slots.map(function (x, k) { if (!x.sizes) return g.kind === 'STACK' ? '<span class="small">' + esc(x.name) + '</span>' : ''; return '<label class="f">' + (g.kind === 'STACK' ? esc(x.name) + ' · ' : '') + (x.opt && x.opt !== 'Size' ? esc(x.opt) : 'Ring size') + '<select id="sz-' + j + '-' + k + '" onchange="ckSize(' + j + ',' + k + ',this.value)"><option value="">Choose…</option>' + x.sizes.map(function (z) { return '<option value="' + esc(z.sku) + '"' + (z.sku === CK.lines[j].sizes[k] ? ' selected' : '') + '>' + esc(z.size) + '</option>'; }).join('') + '</select></label>'; }).join('') +
         '<button class="link left" onclick="ckRemove(' + j + ')">Remove</button></div></div>';
     }).join('') +
+    '<button class="btn ghost wide" onclick="browse()">+ Add more pieces</button>' +
     '<h3>Your details</h3><div class="grid"><label class="f">First name<input id="ck-fn" autocomplete="given-name"></label><label class="f">Last name<input id="ck-ln" autocomplete="family-name"></label></div>' +
     '<label class="f">Email<input id="ck-em" type="email" autocomplete="email"></label><div class="grid"><label class="f">Phone<input id="ck-ph" type="tel" autocomplete="tel"></label><label class="f">Birthday (optional)<input id="ck-bd" placeholder="MM/DD"></label></div>' +
     '<h3>Ship to</h3><label class="f">Street address<input id="ck-a1" autocomplete="address-line1"></label><label class="f">Apt, suite (optional)<input id="ck-a2" autocomplete="address-line2"></label>' +
@@ -144,6 +187,7 @@ function ckDraw() {
     '<label class="f">Note for us (optional)<textarea id="ck-note" rows="2"></textarea></label>' +
     '<div class="box" id="ck-sum"></div><div class="small muted center">You’ll earn Better Bonds rewards on this order.' + (D.cfg.ship_short ? ' ' + esc(D.cfg.ship_short) : '') + '</div></section>');
   if (keep) { $('ck-fn').value = keep.first_name; $('ck-ln').value = keep.last_name; $('ck-em').value = keep.email; $('ck-ph').value = keep.phone; $('ck-bd').value = keep.birthday; $('ck-a1').value = keep.address1; $('ck-a2').value = keep.address2; $('ck-city').value = keep.city; $('ck-st').value = keep.state; $('ck-zip').value = keep.zip; flUpd(); $('ck-cty').value = keep.county; $('ck-opt').checked = keep.optin; }
+  $('ck-note').value = note;
   CK.first = false;
   ['ck-a1', 'ck-city', 'ck-st', 'ck-zip', 'ck-cty'].forEach(function (id) { $(id).addEventListener('change', ckQuote); });
   ckSum();
@@ -189,7 +233,7 @@ function done() {
   if (Q.item && /^STACK-/i.test(Q.item) && !Q.products) { Q.products = Q.item + ':1'; px('ViewContent', { content_ids: [Q.item], content_type: 'product' }); }
   api('page', {}).then(function (d) {
     if (!d) { view('<section class="pad"><h2>The shop couldn’t load</h2><p>Please try again in a moment.</p></section>'); return; }
-    D.cat = d.cat; D.cfg = d.cfg;
+    D.cat = d.cat; D.cfg = d.cfg; D.stacks = d.stacks || [];
     if (!D.cfg.open) { view('<section class="pad"><h2>We’ll be back soon</h2><p>The shop is closed for the moment — please check back soon.</p></section>'); return; }
     if (Q.products) startCart(null, Q.products);
     else if (Q.item) product(Q.item);
