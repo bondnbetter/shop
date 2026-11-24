@@ -74,7 +74,7 @@ function verRows(f, g) {
     return '<button class="chip' + (on ? ' on' : '') + '" onclick="product(\'' + esc(t.key) + '\',' + keep + ')">' + stoneDot(y.first.stone_color, on) + esc(lab) + '</button>'; }).join('') + '</div></div>';
   return out;
 }
-function famPrice(f) { var ps = f.gs.map(function (g) { return g.first.price; }), lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps); return lo === hi ? money(lo) : 'From ' + money(lo); }
+function famPrice(f) { var ps = []; f.gs.forEach(function (g) { g.items.forEach(function (i) { ps.push(Number(i.price)); }); }); var lo = Math.min.apply(null, ps), hi = Math.max.apply(null, ps); return lo === hi ? money(lo) : 'From ' + money(lo); }
 function descHtml(t) { return String(t || '').replace(/\r\n?/g, '\n').split('\n').map(function (ln) { var m = ln.match(/^\s*([^:]{1,40}):\s+(.+)$/); return m ? '<b>' + esc(m[1].trim()) + ':</b> ' + esc(m[2]) : esc(ln); }).join('<br>'); }
 function alsoFor(f) {
   var x = f.g.first, all = fams(), out = [], seen = {}; seen[f.key] = 1; f.gs.forEach(function (g) { seen[g.key] = 1; });
@@ -96,13 +96,13 @@ function product(key, keepSize) {
   var f = h.f, g = h.g, x = g.first, sized = g.items.length > 1;
   var sz = sized ? (g.items.find(function (i) { return keepSize && i.size === keepSize; }) || g.items[0]) : x;
   PK = { key: key, g: g, sku: sz.sku, qty: 1 };
-  px('ViewContent', { content_ids: [g.key], content_type: 'product', content_name: x.name, value: Number(sz.price) || 0, currency: 'USD' });
+  px('ViewContent', { content_ids: [x.own ? sz.sku : g.key], content_type: 'product', content_name: x.name, value: Number(sz.price) || 0, currency: 'USD' });
   var pics = (x.photo ? [x.photo] : []).concat(x.more || []);
   view('<div class="prodpage"><div>' + (pics.length ? '<div class="gal" id="gal" onscroll="galSync()">' + pics.map(function (u) { return '<img src="' + u + '" alt="' + esc(x.name) + '">'; }).join('') + '</div>' +
       (pics.length > 1 ? '<div class="gthumbs">' + pics.map(function (u, i) { return '<button' + (i ? '' : ' class="on"') + ' onclick="galTo(' + i + ')" aria-label="Photo ' + (i + 1) + '"><img src="' + u + '" alt=""></button>'; }).join('') + '</div>' : '') : '<div class="nophoto">Photo coming soon</div>') + '</div>' +
     '<div class="pad">' + (x.type ? '<span class="label">' + esc(x.type) + '</span>' : '') + '<h2>' + esc(x.name) + '</h2><div class="price" id="pp">' + money(sz.price) + '</div>' +
     (f.gs.length > 1 ? verRows(f, g) : '') +
-    (sized ? '<label class="f">' + (x.cat === 'Rings' ? 'Ring size' : esc(x.opt || 'Size')) + '<select id="psz" onchange="PK.sku=this.value;$(\'pp\').textContent=money(item(this.value).price)">' + g.items.map(function (i) { return '<option value="' + esc(i.sku) + '"' + (i === sz ? ' selected' : '') + '>' + esc(i.size) + '</option>'; }).join('') + '</select></label>' : '') +
+    (sized ? '<label class="f">' + (x.cat === 'Rings' ? 'Ring size' : esc(x.opt || 'Size')) + '<select id="psz" onchange="PK.sku=this.value;$(\'pp\').textContent=money(item(this.value).price)">' + (function () { var vary = g.items.some(function (i) { return Number(i.price) !== Number(g.items[0].price); }); return g.items.map(function (i) { return '<option value="' + esc(i.sku) + '"' + (i === sz ? ' selected' : '') + '>' + esc(i.size) + (vary ? ' · ' + money(i.price) : '') + '</option>'; }).join(''); })() + '</select></label>' : '') +
     (x.description ? '<div class="desc">' + descHtml(x.description) + '</div>' : '') + (x.material ? '<div class="small muted">' + esc(x.material) + '</div>' : '') +
     '<div class="qty"><button onclick="pq(-1)" aria-label="Less">−</button><span id="pqn">1</span><button onclick="pq(1)" aria-label="More">+</button></div>' +
     (inCart() ? '<button class="btn wide" onclick="buyNow()">Add to my order</button><button class="btn ghost wide" onclick="backToCk()">Back to checkout</button>' : '<button class="btn wide" onclick="buyNow()">Check out</button>') +
@@ -251,7 +251,7 @@ function done() {
     D.cat = d.cat; D.cfg = d.cfg; D.stacks = d.stacks || [];
     if (!D.cfg.open) { view('<section class="pad"><h2>We’ll be back soon</h2><p>The shop is closed for the moment — please check back soon.</p></section>'); return; }
     if (Q.products) startCart(null, Q.products);
-    else if (Q.item) product(Q.item);
+    else if (Q.item) { var i0 = item(Q.item); product(Q.item, i0 && i0.size); }
     else location.replace(shopLink());
   });
 })();
